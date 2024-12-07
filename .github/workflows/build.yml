@@ -1,0 +1,35 @@
+name: Tea
+
+on:
+  push:
+  pull_request:
+
+jobs:
+
+  check-format:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install nix
+      uses: cachix/install-nix-action@v27
+      with: 
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check formatting
+      run: nix-shell --run "make check-format"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install nix
+      uses: cachix/install-nix-action@v27
+      with: 
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check formatting
+      run: nix-shell --run "make lint"
