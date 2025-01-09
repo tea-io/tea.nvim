@@ -1,44 +1,83 @@
-local tea_enabled = 0
-local tea_timer_id = nil
+local M = {}
 
-local function tea()
-	if vim.bo.modified then
-		vim.cmd("silent! write!")
-	end
-	local pos = vim.api.nvim_win_get_cursor(0)
-	vim.cmd("silent! edit!")
-	vim.api.nvim_win_set_cursor(0, pos)
+local id = 0
+
+local function bytes_to_int(b1, b2, b3, b4)
+    return bit.bor(bit.lshift(b4, 24), bit.lshift(b3, 16), bit.lshift(b2, 8), b1)
 end
 
-local function enable()
-	if tea_enabled == 1 then
-		print("Tea plugin is already enabled!")
-		return
-	end
-
-	tea_enabled = 1
-	print("Tea plugin enabled!")
-	tea_timer_id = vim.loop.new_timer()
-	tea_timer_id:start(3000, 3000, vim.schedule_wrap(tea))
+local function parse_header(header)
+    local b5, b6, b7, b8 = header:byte(0, 4)
+    return bytes_to_int(b8, b7, b6, b5)
 end
 
-local function disable()
-	if tea_enabled == 0 then
-		print("Tea plugin is already disabled!")
-		return
-	end
+function M.wrap_with_header(msg)
+    -- Convert string to bytes
+    local payload = {}
+    for i = 1, #msg do
+        payload[i] = string.byte(msg, i)
+    end
 
-	tea_enabled = 0
-	print("Tea plugin disabled!")
-	if tea_timer_id and not tea_timer_id:is_closing() then
-		tea_timer_id:stop()
-		tea_timer_id:close()
-	end
-	tea_timer_id = nil
+    -- Create header (12 bytes)
+    local header = {
+        -- Size (4 bytes)
+        bit.rshift(bit.band(#payload, 0xFF000000), 24),
+        bit.rshift(bit.band(#payload, 0x00FF0000), 16),
+        bit.rshift(bit.band(#payload, 0x0000FF00), 8),
+        bit.band(#payload, 0x000000FF),
+
+        -- ID (4 bytes)
+        bit.rshift(bit.band(id, 0xFF000000), 24),
+        bit.rshift(bit.band(id, 0x00FF0000), 16),
+        bit.rshift(bit.band(id, 0x0000FF00), 8),
+        bit.band(id, 0x000000FF),
+
+        -- Type (4 bytes)
+        0,
+        0,
+        0,
+        0,
+    }
+    id = id + 1
+
+    -- Concatenate header and payload
+    for i = 1, #payload do
+        header[12 + i] = payload[i]
+    end
+
+    return string.char(unpack(header))
 end
 
-return {
-	enable = enable,
-	disable = disable,
-	tea = tea,
-}
+function M.read_with_header(callback)
+    local buffer = ""
+    local expected_size = nil
+
+    local function process_buffer()
+        if expected_size == nil and #buffer >= 12 then
+            local header = buffer:sub(1, 12)
+            expected_size = parse_header(header)
+            buffer = buffer:sub(13)
+        end
+
+        if expected_size and #buffer >= expected_size then
+            local payload = buffer:sub(1, expected_size)
+            buffer = buffer:sub(expected_size + 1)
+            expected_size = nil
+            callback(payload)
+            process_buffer()
+        end
+    end
+
+    return function(err, chunk)
+        if err then
+            vim.notify("Error reading from socket: " .. vim.inspect(err), vim.log.levels.ERROR)
+            return
+        end
+        if chunk then
+            buffer = buffer .. chunk
+            process_buffer()
+        end
+    end
+end
+
+return M

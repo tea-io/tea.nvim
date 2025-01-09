@@ -4,6 +4,5 @@ end
 
 vim.g.loaded_tea_plugin = 1
 
-local commands = require("commands")
-
-commands.setup()
+require("lsp").setup({})
+require("lsp").start()
