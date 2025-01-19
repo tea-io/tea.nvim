@@ -1,16 +1,21 @@
 local function setup()
-	local functions = require("functions")
+	vim.api.nvim_create_user_command("TeaConnect", function()
+		local server_address = vim.fn.input("Please enter the server address: ")
+		local language_name = vim.fn.input("Please enter the language name: ")
 
-	vim.api.nvim_create_user_command("TeaEnable", function()
-		functions.enable()
-	end, {})
+		local host, port = server_address:match("([^:]+):([^:]+)")
+		local config = {
+			host = host,
+			port = port,
+			name = language_name,
+			root_dir = vim.fn.getcwd(),
+			filetypes = { language_name },
+		}
 
-	vim.api.nvim_create_user_command("TeaDisable", function()
-		functions.disable()
-	end, {})
+		require("lsp").setup(config)
+		require("lsp").start()
 
-	vim.api.nvim_create_user_command("Tea", function()
-		functions.tea()
+		print("\nConnection successfull!")
 	end, {})
 end
 
