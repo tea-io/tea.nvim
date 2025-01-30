@@ -83,4 +83,22 @@ function M.read_with_header(callback)
 	end
 end
 
+function M.find_fuse_tea_fs()
+	local handle = io.popen("findmnt -l -n -o TARGET --types fuse.tea-fs")
+	if not handle then
+		print("findmnt error")
+		return nil
+	end
+
+	local target = handle:read("*l")
+
+	if target then
+		return target
+	end
+	handle:close()
+
+	print("tea-fs mount not found")
+	return nil
+end
+
 return M
