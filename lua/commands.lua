@@ -7,8 +7,7 @@ local function setup()
 		local config = {
 			host = host,
 			port = port,
-			name = language_name,
-			root_dir = vim.fn.getcwd(),
+			name = "Tea " .. language_name .. " LSP Helper",
 			filetypes = { language_name },
 		}
 
